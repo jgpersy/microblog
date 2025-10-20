@@ -1,13 +1,21 @@
 from typing import Optional
 from datetime import datetime, timezone
-from app import db
+from app import db, login
 from sqlalchemy import orm
 import sqlalchemy as sa
 import uuid
+from werkzeug.security import generate_password_hash, check_password_hash
+from flask_login import UserMixin
+from uuid import UUID
 
-class User(db.Model):
+
+@login.user_loader
+def load_user(user_id: str) -> Optional['User']:
+    return db.session.get(User, UUID(user_id))
+
+
+class User(UserMixin, db.Model):
     id: orm.Mapped[sa.Uuid] = orm.mapped_column(sa.Uuid, primary_key=True, default=uuid.uuid4)
-    # id: orm.Mapped[int] = orm.mapped_column(primary_key=True)
     username: orm.Mapped[str] = orm.mapped_column(sa.String(64), unique=True, index=True)
     email: orm.Mapped[str] = orm.mapped_column(sa.String(120), unique=True, index=True)
     password_hash: orm.Mapped[Optional[str]] = orm.mapped_column(sa.String(256))
@@ -15,6 +23,13 @@ class User(db.Model):
 
     def __repr__(self) -> str:
         return f'<User: {self.username}, Email: {self.email}, ID: {self.id}>'
+
+    def set_password(self, password: str) -> None:
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password: str) -> bool:
+        return check_password_hash(self.password_hash, password)
+
 
 class Post(db.Model):
     id: orm.Mapped[sa.Uuid] = orm.mapped_column(sa.Uuid, primary_key=True, default=uuid.uuid4)
